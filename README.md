@@ -21,6 +21,8 @@ Follow the steps below.
 ### 3. install requirements
 
     pip install -r requirements.txt
+    
+this step may takes a while.
  
 ### 4. run codes and train models
 
