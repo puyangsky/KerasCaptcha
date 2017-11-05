@@ -18,9 +18,7 @@ from keras.layers.recurrent import GRU
 from keras.models import Model
 from keras.optimizers import SGD
 from test import ocr_test as test
-import matplotlib
 
-matplotlib.use('Agg')
 OUTPUT_DIR = 'image_ocr'
 
 alphabet = string.digits + string.letters
@@ -162,26 +160,27 @@ class VizCallback(keras.callbacks.Callback):
               % (num, mean_ed, mean_norm_ed))
 
     def on_epoch_end(self, epoch, logs={}):
-        self.model.save_weights(os.path.join(self.output_dir, 'weights%02d.h5' % (epoch)))
-        self.show_edit_distance(256)
-        word_batch = next(self.text_img_gen)[0]
-        res = decode_batch(self.test_func, word_batch['the_input'][0:self.num_display_words])
-        if word_batch['the_input'][0].shape[0] < 256:
-            cols = 2
-        else:
-            cols = 1
-        for i in range(self.num_display_words):
-            pylab.subplot(self.num_display_words // cols, cols, i + 1)
-            if K.image_data_format() == 'channels_first':
-                the_input = word_batch['the_input'][i, 0, :, :]
-            else:
-                the_input = word_batch['the_input'][i, :, :, 0]
-            pylab.imshow(the_input.T, cmap='Greys_r')
-            pylab.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (word_batch['source_str'][i], res[i]))
-        fig = pylab.gcf()
-        fig.set_size_inches(10, 13)
-        pylab.savefig(os.path.join(self.output_dir, 'e%02d.png' % (epoch)))
-        pylab.close()
+        # self.model.save_weights(os.path.join(self.output_dir, 'weights%02d.h5' % (epoch)))
+        # self.show_edit_distance(256)
+        # word_batch = next(self.text_img_gen)[0]
+        # res = decode_batch(self.test_func, word_batch['the_input'][0:self.num_display_words])
+        # if word_batch['the_input'][0].shape[0] < 256:
+        #     cols = 2
+        # else:
+        #     cols = 1
+        # for i in range(self.num_display_words):
+        #     pylab.subplot(self.num_display_words // cols, cols, i + 1)
+        #     if K.image_data_format() == 'channels_first':
+        #         the_input = word_batch['the_input'][i, 0, :, :]
+        #     else:
+        #         the_input = word_batch['the_input'][i, :, :, 0]
+        #     pylab.imshow(the_input.T, cmap='Greys_r')
+        #     pylab.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (word_batch['source_str'][i], res[i]))
+        # fig = pylab.gcf()
+        # fig.set_size_inches(10, 13)
+        # pylab.savefig(os.path.join(self.output_dir, 'e%02d.png' % (epoch)))
+        # pylab.close()
+        print("epoch %d end..." % epoch)
 
 
 def train_model(run_name, start_epoch, stop_epoch, img_w):
