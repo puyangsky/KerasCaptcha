@@ -2,11 +2,11 @@
 
 import random
 from captcha.image import ImageCaptcha
-from PIL import Image
 import numpy as np
 import os
+import string
 
-alphabet = 'abcdefghijklmnopqrstuvwxyz'
+alphabet = string.digits + string.letters
 data_path = os.path.dirname(os.path.realpath(__file__)) + "/data/"
 width, height = 160, 60
 
@@ -27,43 +27,35 @@ def image_gen(batch_size=10, img_w=160, img_h=60):
     print "generate %d captchas" % batch_size
 
 
-def test_gen(batch_size=10, img_w=160, img_h=60):
-    # image_gen(batch_size=batch_size, img_w=img_w, img_h=img_h)
-    # f = open(data_path + "text.txt", 'r')
-    X = np.zeros((batch_size, img_h, img_w, 1), dtype=np.float32)
-    y = []
-    # for i, line in enumerate(f.readlines()):
-    #     text = line.strip('\n')
-    #     img_name = "%d-%s.png" % (i, text)
-    #     img = Image.open(data_path + img_name)
-    #     img = img.convert("I")
-    #     test_x = np.asarray(img, dtype=np.float32) / 255
-    #     y = text
-    #     yield (test_x, y)
+def gen(batch_size=32, captcha_len=4):
+    X = np.zeros((batch_size, width, height, 1), dtype=np.float32)
+    y = np.ones((batch_size, 16), dtype=np.float32) * -1
     generator = ImageCaptcha(width=width, height=height)
+    captchas = ''
     while True:
         for i in range(batch_size):
-            text = "".join(random.sample(alphabet, 4))
-            img = generator.generate_image(text)
+            random_str = ''.join([random.choice(alphabet) for j in range(captcha_len)])
+            captchas = random_str
+            img = generator.generate_image(random_str)
             tmp_X = np.asarray(img, dtype=np.float32) / 255
-            for index_i, tmp_i in enumerate(tmp_X):
-                for index_j, tmp_j in enumerate(tmp_i):
-                    if index_j >= img_w or index_i >= img_h:
-                        continue
-                    # 三通道转单通道
-                    X[i][index_i][index_j] = tmp_j[0]
-            Image._show(img)
-            y.append(text)
-        yield X, y
+            # 将60 * 160 * 3 转成 160 * 60 * 3
+            tmp_X = tmp_X.swapaxes(0, 1)
+            tmp_X = tmp_X[:, :, 0]
+            tmp_X = np.expand_dims(tmp_X, 2)
+            X[i] = tmp_X
+            # for index_i, tmp_i in enumerate(tmp_X):
+            #     for index_j, tmp_j in enumerate(tmp_i):
+            #         # 三通道转单通道
+            #         X[i][index_i][index_j] = tmp_j[0]
+            for j, ch in enumerate(random_str):
+                y[i, j] = alphabet.find(ch)
+        yield X, y, captchas
 
 
 if __name__ == '__main__':
-    gen = test_gen(batch_size=1, img_h=10, img_w=10)
-    x, y = next(gen)
-    f = open("test.txt", 'w')
-    for i in x[0]:
-        for j in i:
-            f.write("%.2f\t" % (j[0] - 0.992157))
-        f.write('\n')
-    f.close()
-    print y
+    g = gen(batch_size=1)
+    X, y, c = next(g)
+    print(X.shape)
+    print(X[0, :, :, 0].shape)
+    print(y)
+    print(c)

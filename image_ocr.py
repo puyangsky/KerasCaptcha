@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+
 '''This example uses a convolutional stack followed by a recurrent stack
 and a CTC logloss function to perform optical character recognition
 of generated text images. I have no evidence of whether it actually
@@ -48,14 +50,15 @@ from keras.optimizers import SGD
 from keras.utils.data_utils import get_file
 from keras.preprocessing import image
 import keras.callbacks
-from keras.models import load_model
 from test import ocr_test as test
+import string
 
 OUTPUT_DIR = 'image_ocr'
 
 # character classes and matching regex filter
-regex = r'^[a-z ]+$'
-alphabet = u'abcdefghijklmnopqrstuvwxyz '
+regex = r'^[0-9a-zA-Z]+$'
+# alphabet = u'abcdefghijklmnopqrstuvwxyz '
+alphabet = string.digits + string.letters
 
 np.random.seed(55)
 
@@ -273,10 +276,51 @@ class TextImageGenerator(keras.callbacks.Callback):
                     X_data[i, 0, 0:self.img_w, :] = self.paint_func(self.X_text[index + i])[0, :, :].T
                 else:
                     X_data[i, 0:self.img_w, :, 0] = self.paint_func(self.X_text[index + i])[0, :, :].T
-                labels[i, :] = self.Y_data[index + i]
-                input_length[i] = self.img_w // self.downsample_factor - 2
-                label_length[i] = self.Y_len[index + i]
-                source_str.append(self.X_text[index + i])
+            labels[i, :] = self.Y_data[index + i]
+            input_length[i] = self.img_w // self.downsample_factor - 2
+            label_length[i] = self.Y_len[index + i]
+            source_str.append(self.X_text[index + i])
+            # print("input_length: %r" % input_length[i])
+            # print("label_length: %r" % label_length[i])
+            # print("source_str: %r" % source_str[-1])
+            # print("labels[i, :]: %r" % labels[i, :])
+
+        # TODO 修改这四个输入源
+        inputs = {'the_input': X_data,
+                  'the_labels': labels,
+                  'input_length': input_length,
+                  'label_length': label_length,
+                  'source_str': source_str  # used for visualization only
+                  }
+        # with open('input1.txt', 'w') as f:
+        #     f.write(">>>> the_input:%r\n" % X_data)
+        #     print(X_data.shape)
+        #     f.write(">>>> the_labels:%r\n" % labels)
+        #     print (labels.shape)
+        #     f.write(">>>> input_length:%r\n" % input_length)
+        #     print (input_length.shape)
+        #     f.write(">>>> label_length:%r\n" % label_length)
+        #     print (label_length.shape)
+        #     f.write(">>>> source_str:%r\n" % source_str)
+        outputs = {'ctc': np.zeros([size])}  # dummy data for dummy loss function
+        return (inputs, outputs)
+
+    def get_batch_new(self, size):
+        X_data = np.ones([size, self.img_w, self.img_h, 1])
+        labels = np.ones([size, self.absolute_max_string_len])
+        input_length = np.zeros([size, 1])
+        label_length = np.zeros([size, 1])
+        source_str = []
+        for i in range(size):
+            img_gen = test.gen(batch_size=1)
+            tmp_X, tmp_y, tmp_c = next(img_gen)
+            # default not channels_first
+            X_data[i, 0:self.img_w, 0:self.img_h, 0] = tmp_X[0, :, :, 0]
+            labels[i, :] = tmp_y
+            input_length[i] = self.img_w // self.downsample_factor - 2
+            label_length[i] = float(4)
+            source_str.append(tmp_c)
+
         inputs = {'the_input': X_data,
                   'the_labels': labels,
                   'input_length': input_length,
@@ -296,6 +340,11 @@ class TextImageGenerator(keras.callbacks.Callback):
                     [self.X_text, self.Y_data, self.Y_len], self.val_split)
             yield ret
 
+    def next_train_new(self):
+        while 1:
+            ret = self.get_batch_new(self.minibatch_size)
+            yield ret
+
     def next_val(self):
         while 1:
             ret = self.get_batch(self.cur_val_index, self.minibatch_size, train=False)
@@ -304,24 +353,31 @@ class TextImageGenerator(keras.callbacks.Callback):
                 self.cur_val_index = self.val_split + self.cur_val_index % 32
             yield ret
 
+    def next_val_new(self):
+        while 1:
+            ret = self.get_batch_new(self.minibatch_size)
+            yield ret
+
     def on_train_begin(self, logs={}):
-        self.build_word_list(16000, 4, 1)
-        self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                  rotate=False, ud=False, multi_fonts=False)
+        # self.build_word_list(16000, 4, 1)
+        # self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
+        #                                           rotate=False, ud=False, multi_fonts=False)
+        print("train begin...")
 
     def on_epoch_begin(self, epoch, logs={}):
-        # rebind the paint function to implement curriculum learning
-        if 3 <= epoch < 6:
-            self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                      rotate=False, ud=True, multi_fonts=False)
-        elif 6 <= epoch < 9:
-            self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                      rotate=False, ud=True, multi_fonts=True)
-        elif epoch >= 9:
-            self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                      rotate=True, ud=True, multi_fonts=True)
-        if epoch >= 21 and self.max_string_len < 12:
-            self.build_word_list(32000, 12, 0.5)
+        # # rebind the paint function to implement curriculum learning
+        # if 3 <= epoch < 6:
+        #     self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
+        #                                               rotate=False, ud=True, multi_fonts=False)
+        # elif 6 <= epoch < 9:
+        #     self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
+        #                                               rotate=False, ud=True, multi_fonts=True)
+        # elif epoch >= 9:
+        #     self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
+        #                                               rotate=True, ud=True, multi_fonts=True)
+        # if epoch >= 21 and self.max_string_len < 12:
+        #     self.build_word_list(32000, 12, 0.5)
+        print("epoch %d begin..." % epoch)
 
 
 # the actual loss calc occurs here despite it not being
@@ -342,6 +398,7 @@ def decode_batch(test_func, word_batch):
     out = test_func([word_batch])[0]
     ret = []
     for j in range(out.shape[0]):
+        # argmax返回的是最大数的索引
         out_best = list(np.argmax(out[j, 2:], 1))
         out_best = [k for k, g in itertools.groupby(out_best)]
         outstr = labels_to_text(out_best)
@@ -401,7 +458,7 @@ class VizCallback(keras.callbacks.Callback):
         pylab.close()
 
 
-def train(run_name, start_epoch, stop_epoch, img_w):
+def train_model(run_name, start_epoch, stop_epoch, img_w):
     # Input Parameters
     img_h = 60
     words_per_epoch = 16000
@@ -415,6 +472,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     time_dense_size = 32
     rnn_size = 512
     minibatch_size = 32
+    # minibatch_size = 1
 
     if K.image_data_format() == 'channels_first':
         input_shape = (1, img_w, img_h)
@@ -423,7 +481,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
 
     fdir = os.path.dirname(get_file('wordlists.tgz',
                                     origin='http://www.mythic-ai.com/datasets/wordlists.tgz', untar=True))
-
+    # TODO 重写img_gen，修改图片源
     img_gen = TextImageGenerator(monogram_file=os.path.join(fdir, 'wordlist_mono_clean.txt'),
                                  bigram_file=os.path.join(fdir, 'wordlist_bi_clean.txt'),
                                  minibatch_size=minibatch_size,
@@ -483,7 +541,8 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     # captures output of softmax so we can decode the output during visualization
     test_func = K.function([input_data], [y_pred])
 
-    viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
+    # viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
+    viz_cb = VizCallback(run_name, test_func, img_gen.next_val_new())
 
     # model.fit_generator(generator=img_gen.next_train(),
     #                     steps_per_epoch=(words_per_epoch - val_words) // minibatch_size,
@@ -492,17 +551,42 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     #                     validation_steps=val_words // minibatch_size,
     #                     callbacks=[viz_cb, img_gen],
     #                     initial_epoch=start_epoch)
+
+    model.fit_generator(generator=img_gen.next_train_new(),
+                        steps_per_epoch=(words_per_epoch - val_words) // minibatch_size,
+                        epochs=stop_epoch,
+                        validation_data=img_gen.next_val_new(),
+                        validation_steps=val_words // minibatch_size,
+                        callbacks=[viz_cb, img_gen],
+                        initial_epoch=start_epoch)
+
     # model.save("my_model.h5")
-    gen = test.test_gen(batch_size=1)
+    # return model
+    # test_X = test_model()
+    # result = decode_batch(test_func, test_X)
+    # print(">>>>result:", result)
+    # print(">>>>shape:", result[0].shape)
+
+
+def test_model():
+    gen = test.gen(batch_size=1)
     test_x, y = next(gen)
-    y_pre = model.predict(test_x)
-    print "real: %s, pred: %s" % (y, y_pre)
+    # labels = np.ones([1, 16])
+    input_length = np.zeros([1, 1])
+    input_length[0][0] = 38
+    label_length = np.zeros([1, 1])
+    label_length[0][0] = 4
+    # y_pre = model.predict([test_x, y, input_length, label_length], steps=1)
+    # y_pre = model.predict(test_x, batch_size=1)
+    # print("real: %s, pred: %s" % (y, y_pre))
+    return test_x
 
 
 if __name__ == '__main__':
-    # run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
-    # train(run_name, 4, 6, 128)
+    run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
+    train_model(run_name, 0, 3, 160)
     # increase to wider images and start at epoch 20. The learned weights are reloaded
     # train(run_name, 20, 25, 512)
-    run_name = "train"
-    train(run_name, 3, 3, 160)
+
+    # run_name = "train"
+    # train_model(run_name, 3, 3, 160)
