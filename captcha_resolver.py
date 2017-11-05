@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function
 import datetime
 import itertools
 import os
@@ -160,7 +161,7 @@ class VizCallback(keras.callbacks.Callback):
               % (num, mean_ed, mean_norm_ed))
 
     def on_epoch_end(self, epoch, logs={}):
-        # self.model.save_weights(os.path.join(self.output_dir, 'weights%02d.h5' % (epoch)))
+        self.model.save_weights(os.path.join(self.output_dir, 'weights%02d.h5' % (epoch)))
         # self.show_edit_distance(256)
         # word_batch = next(self.text_img_gen)[0]
         # res = decode_batch(self.test_func, word_batch['the_input'][0:self.num_display_words])
@@ -180,10 +181,10 @@ class VizCallback(keras.callbacks.Callback):
         # fig.set_size_inches(10, 13)
         # pylab.savefig(os.path.join(self.output_dir, 'e%02d.png' % (epoch)))
         # pylab.close()
-        print("epoch %d end..." % epoch)
+        print("\nepoch %d end..." % epoch)
 
 
-def train_model(run_name, start_epoch, stop_epoch, img_w):
+def train_model(run_name, start_epoch, stop_epoch, img_w, do_test=False):
     # Input Parameters
     img_h = 60
     words_per_epoch = 16000
@@ -258,22 +259,36 @@ def train_model(run_name, start_epoch, stop_epoch, img_w):
 
     viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
 
-    model.fit_generator(generator=img_gen.next_train(),
-                        steps_per_epoch=(words_per_epoch - val_words) // minibatch_size,
-                        epochs=stop_epoch,
-                        validation_data=img_gen.next_val(),
-                        validation_steps=val_words // minibatch_size,
-                        callbacks=[viz_cb, img_gen],
-                        initial_epoch=start_epoch)
+    if not do_test:
+        model.fit_generator(generator=img_gen.next_train(),
+                            steps_per_epoch=(words_per_epoch - val_words) // minibatch_size,
+                            epochs=stop_epoch,
+                            validation_data=img_gen.next_val(),
+                            validation_steps=val_words // minibatch_size,
+                            callbacks=[viz_cb, img_gen],
+                            initial_epoch=start_epoch)
+        # model.save("my_model.h5")
+    else:
+        evaluate(test_func, 1000)
 
-    # model.save("my_model.h5")
-    # return model
-    # test_X = test_model()
-    # result = decode_batch(test_func, test_X)
-    # print(">>>>result:", result)
-    # print(">>>>shape:", result[0].shape)
+
+def evaluate(test_func, batch_size=1):
+    correct_count = 0
+    img_gen = test.gen(batch_size=1)
+    for i in range(batch_size):
+        test_X, _, test_c = next(img_gen)
+        result = decode_batch(test_func, test_X)
+        try:
+            if test_c.lower() == result[0].lower():
+                correct_count += 1
+            else:
+                print("[ERROR] actual: %s, predict: %s" % (test_c, result[0]))
+        except Exception as e:
+            print(e.message)
+    print("Accuracy: %.2f" % (float(correct_count) / batch_size))
 
 
 if __name__ == '__main__':
-    run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
-    train_model(run_name, 0, 3, 160)
+    # run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
+    run_name = 'train'
+    train_model(run_name, 30, 30, 160, True)
