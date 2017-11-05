@@ -292,7 +292,7 @@ class TextImageGenerator(keras.callbacks.Callback):
                   'label_length': label_length,
                   'source_str': source_str  # used for visualization only
                   }
-        # with open('input1.txt', 'w') as f:
+        # with open('input1.log', 'w') as f:
         #     f.write(">>>> the_input:%r\n" % X_data)
         #     print(X_data.shape)
         #     f.write(">>>> the_labels:%r\n" % labels)
