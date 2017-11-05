@@ -17,9 +17,10 @@ from keras.layers.merge import add, concatenate
 from keras.layers.recurrent import GRU
 from keras.models import Model
 from keras.optimizers import SGD
-
 from test import ocr_test as test
+import matplotlib
 
+matplotlib.use('Agg')
 OUTPUT_DIR = 'image_ocr'
 
 alphabet = string.digits + string.letters
