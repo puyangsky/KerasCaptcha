@@ -40,13 +40,10 @@ def gen(batch_size=32, captcha_len=4):
             tmp_X = np.asarray(img, dtype=np.float32) / 255
             # 将60 * 160 * 3 转成 160 * 60 * 3
             tmp_X = tmp_X.swapaxes(0, 1)
+            # 三通道转单通道
             tmp_X = tmp_X[:, :, 0]
             tmp_X = np.expand_dims(tmp_X, 2)
             X[i] = tmp_X
-            # for index_i, tmp_i in enumerate(tmp_X):
-            #     for index_j, tmp_j in enumerate(tmp_i):
-            #         # 三通道转单通道
-            #         X[i][index_i][index_j] = tmp_j[0]
             for j, ch in enumerate(random_str):
                 y[i, j] = alphabet.find(ch)
         yield X, y, captchas
