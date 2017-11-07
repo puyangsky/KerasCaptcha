@@ -3,3 +3,7 @@
 */*pyc
 *.log
 image_orc/*
+test/data/*
+.DS_STORE
+*/*/*.h5
+image_ocr/*/*.h5

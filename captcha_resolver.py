@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
-import datetime
+
 import itertools
 import os
 import string
@@ -9,7 +9,6 @@ import string
 import editdistance
 import keras.callbacks
 import numpy as np
-import pylab
 from keras import backend as K
 from keras.layers import Input, Dense, Activation
 from keras.layers import Reshape, Lambda
@@ -18,7 +17,8 @@ from keras.layers.merge import add, concatenate
 from keras.layers.recurrent import GRU
 from keras.models import Model
 from keras.optimizers import SGD
-from test import ocr_test as test
+
+from test import ocr_test
 
 OUTPUT_DIR = 'image_ocr'
 
@@ -51,14 +51,13 @@ def labels_to_text(labels):
 class TextImageGenerator(keras.callbacks.Callback):
 
     def __init__(self, minibatch_size,
-                 img_w, img_h, downsample_factor, val_split,
+                 img_w, img_h, downsample_factor,
                  absolute_max_string_len=16):
 
         self.minibatch_size = minibatch_size
         self.img_w = img_w
         self.img_h = img_h
         self.downsample_factor = downsample_factor
-        self.val_split = val_split
         self.blank_label = self.get_output_size() - 1
         self.absolute_max_string_len = absolute_max_string_len
 
@@ -72,7 +71,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         label_length = np.zeros([size, 1])
         source_str = []
         for i in range(size):
-            img_gen = test.gen(batch_size=1)
+            img_gen = ocr_test.gen(batch_size=1, img_w=self.img_w, img_h=self.img_h)
             tmp_X, tmp_y, tmp_c = next(img_gen)
             # default not channels_first
             X_data[i, 0:self.img_w, 0:self.img_h, 0] = tmp_X[0, :, :, 0]
@@ -89,11 +88,6 @@ class TextImageGenerator(keras.callbacks.Callback):
                   }
         outputs = {'ctc': np.zeros([size])}  # dummy data for dummy loss function
         return (inputs, outputs)
-
-    def next_train(self):
-        while 1:
-            ret = self.get_batch(self.minibatch_size)
-            yield ret
 
     def next_val(self):
         while 1:
@@ -184,9 +178,8 @@ class VizCallback(keras.callbacks.Callback):
         print("\nepoch %d end..." % epoch)
 
 
-def train_model(run_name, start_epoch, stop_epoch, img_w, do_test=False):
+def train_model(run_name, start_epoch, stop_epoch, img_w, img_h, do_test=False):
     # Input Parameters
-    img_h = 60
     words_per_epoch = 16000
     val_split = 0.2
     val_words = int(words_per_epoch * (val_split))
@@ -204,7 +197,6 @@ def train_model(run_name, start_epoch, stop_epoch, img_w, do_test=False):
                                  img_w=img_w,
                                  img_h=img_h,
                                  downsample_factor=(pool_size ** 2),
-                                 val_split=words_per_epoch - val_words
                                  )
     act = 'relu'
     input_data = Input(name='the_input', shape=input_shape, dtype='float32')
@@ -257,10 +249,9 @@ def train_model(run_name, start_epoch, stop_epoch, img_w, do_test=False):
     # captures output of softmax so we can decode the output during visualization
     test_func = K.function([input_data], [y_pred])
 
-    viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
-
     if not do_test:
-        model.fit_generator(generator=img_gen.next_train(),
+        viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
+        model.fit_generator(generator=img_gen.next_val(),
                             steps_per_epoch=(words_per_epoch - val_words) // minibatch_size,
                             epochs=stop_epoch,
                             validation_data=img_gen.next_val(),
@@ -269,12 +260,13 @@ def train_model(run_name, start_epoch, stop_epoch, img_w, do_test=False):
                             initial_epoch=start_epoch)
         # model.save("my_model.h5")
     else:
-        evaluate(test_func, 1000)
+        evaluate(test_func, img_w, img_h, 1)
+        # evaluate_test_set(test_func, img_w, img_h, 1)
 
 
-def evaluate(test_func, batch_size=1):
+def evaluate(test_func, img_w, img_h, batch_size=1,):
     correct_count = 0
-    img_gen = test.gen(batch_size=1)
+    img_gen = ocr_test.gen(batch_size=1, img_w=img_w, img_h=img_h)
     for i in range(batch_size):
         test_X, _, test_c = next(img_gen)
         result = decode_batch(test_func, test_X)
@@ -283,12 +275,21 @@ def evaluate(test_func, batch_size=1):
                 correct_count += 1
             else:
                 print("[ERROR] actual: %s, predict: %s" % (test_c, result[0]))
+            print("[INFO] actual: %s, predict: %s" % (test_c, result[0]))
         except Exception as e:
             print(e.message)
     print("Accuracy: %.2f" % (float(correct_count) / batch_size))
 
 
+def evaluate_test_set(test_func, img_w, img_h, batch_size=1):
+    img_gen = ocr_test.train_set_gen(img_w=img_w, img_h=img_h)
+    for i in range(batch_size):
+        test_X = next(img_gen)
+        result = decode_batch(test_func, test_X)
+        print("[INFO] predict: %s" % (result[0]))
+
+
 if __name__ == '__main__':
     # run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
-    run_name = 'train'
-    train_model(run_name, 30, 30, 160, True)
+    run_name = 'train_wx'
+    train_model(run_name, 0, 30, 130, 53, False)
