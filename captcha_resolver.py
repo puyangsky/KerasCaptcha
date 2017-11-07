@@ -292,4 +292,4 @@ def evaluate_test_set(test_func, img_w, img_h, batch_size=1):
 if __name__ == '__main__':
     # run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
     run_name = 'train_wx'
-    train_model(run_name, 0, 30, 130, 53, False)
+    train_model(run_name, 0, 30, 160, 60, False)

@@ -82,7 +82,7 @@ def walk_captcha():
         yield img
 
 
-def pre_process(im):
+def reduce_noise(im):
     """
     图片预处理
     增加对比度 -> 灰度化 -> 二值化 -> 去除离散点
@@ -97,6 +97,17 @@ def pre_process(im):
     im.show()
 
 
+def enhance_contrast(im):
+    """
+    增强对比度
+    :param im:
+    :return:
+    """
+    enhancer = ImageEnhance.Contrast(im)
+    im = enhancer.enhance(2)
+    return im
+
+
 def random_img(captcha_len=4, img_w=width, img_h=height):
     """
     利用ImageCaptcha库生成随机验证码图片
@@ -106,6 +117,7 @@ def random_img(captcha_len=4, img_w=width, img_h=height):
     :return: 验证码图片和内容
     """
     generator = ImageCaptcha(width=img_w, height=img_h, fonts=[os.path.join(file_path, 'B.ttf')])
+    # generator = ImageCaptcha(width=img_w, height=img_h)
     random_str = ''.join([random.choice(alphabet) for j in range(captcha_len)])
     captchas = random_str
     img = generator.generate_image(random_str)
@@ -122,10 +134,12 @@ def gen(batch_size=32, captcha_len=4, img_w=width, img_h=height):
     """
     X = np.zeros((batch_size, img_w, img_h, 1), dtype=np.float32)
     y = np.ones((batch_size, 16), dtype=np.float32) * -1
-    captchas = ''
+    random_chars = ''
     while True:
         for i in range(batch_size):
-            img, captchas = random_img(captcha_len, img_w, img_h)
+            img, random_chars = random_img(captcha_len, img_w, img_h)
+            img = enhance_contrast(img)
+            img.show()
             tmp_X = np.asarray(img, dtype=np.float32) / 255
             # 将60 * 160 * 3 转成 160 * 60 * 3
             tmp_X = tmp_X.swapaxes(0, 1)
@@ -133,9 +147,9 @@ def gen(batch_size=32, captcha_len=4, img_w=width, img_h=height):
             tmp_X = tmp_X[:, :, 0]
             tmp_X = np.expand_dims(tmp_X, 2)
             X[i] = tmp_X
-            for j, ch in enumerate(captchas):
+            for j, ch in enumerate(random_chars):
                 y[i, j] = alphabet.find(ch)
-        yield X, y, captchas
+        yield X, y, random_chars
 
 
 if __name__ == '__main__':
@@ -143,8 +157,7 @@ if __name__ == '__main__':
     # pre_process(Image.open("data/sogo/1510032435071.jpeg"))
     # a, _ = random_img()
     # pre_process(a)
-    g = gen()
+    g = gen(batch_size=1, captcha_len=4, img_h=60, img_w=160)
     X, _, _ = next(g)
-    print(X.shape)
 
 
