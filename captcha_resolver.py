@@ -9,6 +9,7 @@ import string
 import editdistance
 import keras.callbacks
 import numpy as np
+import time
 from keras import backend as K
 from keras.layers import Input, Dense, Activation
 from keras.layers import Reshape, Lambda
@@ -23,6 +24,7 @@ from test import ocr_test
 OUTPUT_DIR = 'image_ocr'
 
 alphabet = string.digits + string.letters
+# alphabet = string.letters
 
 
 # Translation of characters to unique integer values
@@ -51,7 +53,7 @@ def labels_to_text(labels):
 class TextImageGenerator(keras.callbacks.Callback):
 
     def __init__(self, minibatch_size,
-                 img_w, img_h, downsample_factor,
+                 img_w, img_h, downsample_factor, captcha_len,
                  absolute_max_string_len=16):
 
         self.minibatch_size = minibatch_size
@@ -60,6 +62,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         self.downsample_factor = downsample_factor
         self.blank_label = self.get_output_size() - 1
         self.absolute_max_string_len = absolute_max_string_len
+        self.captcha_len = captcha_len
 
     def get_output_size(self):
         return len(alphabet) + 1
@@ -71,7 +74,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         label_length = np.zeros([size, 1])
         source_str = []
         for i in range(size):
-            img_gen = ocr_test.gen(batch_size=1, img_w=self.img_w, img_h=self.img_h)
+            img_gen = ocr_test.gen(batch_size=1, captcha_len=self.captcha_len, img_w=self.img_w, img_h=self.img_h)
             tmp_X, tmp_y, tmp_c = next(img_gen)
             # default not channels_first
             X_data[i, 0:self.img_w, 0:self.img_h, 0] = tmp_X[0, :, :, 0]
@@ -178,7 +181,7 @@ class VizCallback(keras.callbacks.Callback):
         print("\nepoch %d end..." % epoch)
 
 
-def train_model(run_name, start_epoch, stop_epoch, img_w, img_h, do_test=False):
+def train_model(run_name, start_epoch, stop_epoch, img_w, img_h, captcha_len, do_test=False):
     # Input Parameters
     words_per_epoch = 16000
     val_split = 0.2
@@ -197,6 +200,7 @@ def train_model(run_name, start_epoch, stop_epoch, img_w, img_h, do_test=False):
                                  img_w=img_w,
                                  img_h=img_h,
                                  downsample_factor=(pool_size ** 2),
+                                 captcha_len=captcha_len
                                  )
     act = 'relu'
     input_data = Input(name='the_input', shape=input_shape, dtype='float32')
@@ -260,22 +264,22 @@ def train_model(run_name, start_epoch, stop_epoch, img_w, img_h, do_test=False):
                             initial_epoch=start_epoch)
         # model.save("my_model.h5")
     else:
-        evaluate(test_func, img_w, img_h, 1)
-        # evaluate_test_set(test_func, img_w, img_h, 1)
+        evaluate(test_func, img_w, img_h, captcha_len, 10)
+        # evaluate_test_set(test_func, img_w, img_h, 10)
 
 
-def evaluate(test_func, img_w, img_h, batch_size=1,):
+def evaluate(test_func, img_w, img_h, captcha_len, batch_size=1):
     correct_count = 0
-    img_gen = ocr_test.gen(batch_size=1, img_w=img_w, img_h=img_h)
+    img_gen = ocr_test.gen(batch_size=1, captcha_len=captcha_len, img_w=img_w, img_h=img_h)
     for i in range(batch_size):
         test_X, _, test_c = next(img_gen)
         result = decode_batch(test_func, test_X)
         try:
             if test_c.lower() == result[0].lower():
                 correct_count += 1
+                print("[INFO] actual: %s, predict: %s" % (test_c, result[0]))
             else:
                 print("[ERROR] actual: %s, predict: %s" % (test_c, result[0]))
-            print("[INFO] actual: %s, predict: %s" % (test_c, result[0]))
         except Exception as e:
             print(e.message)
     print("Accuracy: %.2f" % (float(correct_count) / batch_size))
@@ -284,12 +288,15 @@ def evaluate(test_func, img_w, img_h, batch_size=1,):
 def evaluate_test_set(test_func, img_w, img_h, batch_size=1):
     img_gen = ocr_test.train_set_gen(img_w=img_w, img_h=img_h)
     for i in range(batch_size):
-        test_X = next(img_gen)
-        result = decode_batch(test_func, test_X)
-        print("[INFO] predict: %s" % (result[0]))
+        test_X, img = next(img_gen)
+        result = decode_batch(test_func, test_X)[0]
+        # ocr_test.save_predict(img, result, "wx")
+        img.show()
+        print("[INFO] predict: %s" % result)
+        time.sleep(2)
 
 
 if __name__ == '__main__':
     # run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
-    run_name = 'train_wx'
-    train_model(run_name, 0, 30, 160, 60, False)
+    run_name = 'train_sogo'
+    train_model(run_name, 0, 50, 160, 60, 6, False)
