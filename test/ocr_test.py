@@ -4,6 +4,7 @@ from __future__ import print_function
 import random
 from StringIO import StringIO
 
+import cv2
 from captcha.image import ImageCaptcha
 import numpy as np
 import os
@@ -11,6 +12,7 @@ import string
 from PIL import Image, ImageFilter, ImageEnhance
 import requests
 from time import time
+import pytesser
 
 alphabet = string.digits + string.letters
 # alphabet = string.letters
@@ -42,7 +44,7 @@ def train_set_gen(img_w=width, img_h=height, source_url=wx_url):
         img = fetch_img(source_url)
         X = np.zeros((1, img_w, img_h, 1), dtype=np.float32)
         if isinstance(img, Image.Image):
-            img = reduce_noise(img, False)
+            # img = reduce_noise(img, False)
             # print(img.size)
             if img.size != (img_w, img_h):
                 img = img.resize((img_w, img_h), Image.ANTIALIAS)
@@ -98,16 +100,7 @@ def reduce_noise(im, verbose=False):
         im.show()
     enhancer = ImageEnhance.Contrast(im)
     im = enhancer.enhance(2)
-    # tmp_X = np.asarray(im, dtype=np.uint8)
-    # print(tmp_X.shape)
-    # print(tmp_X[0][0])
-    # im = im.convert("L")
-    # tmp_X = np.asarray(im, dtype=np.uint8)
-    # print(tmp_X.shape)
-    # print(tmp_X[0][0])
-    # tmp_X = np.expand_dims(tmp_X, 2)
-    # print(tmp_X.shape)
-    # print(tmp_X[0][0])
+    im = im.convert("L")
     # im = im.convert('1')
     for i in range(5):
         im = im.filter(ImageFilter.MedianFilter)
@@ -135,8 +128,8 @@ def random_img(captcha_len=4, img_w=width, img_h=height):
     :param captcha_len: 验证码长度
     :return: 验证码图片和内容
     """
-    # generator = ImageCaptcha(width=img_w, height=img_h, fonts=[os.path.join(file_path, 'B.ttf')])
-    generator = ImageCaptcha(width=img_w, height=img_h)
+    generator = ImageCaptcha(width=img_w, height=img_h, fonts=[os.path.join(file_path, 'kongxin.ttf')])
+    # generator = ImageCaptcha(width=img_w, height=img_h)
     random_str = ''.join([random.choice(alphabet) for j in range(captcha_len)])
     captchas = random_str
     img = generator.generate_image(random_str)
@@ -158,6 +151,7 @@ def gen(batch_size=32, captcha_len=4, img_w=width, img_h=height):
         for i in range(batch_size):
             img, random_chars = random_img(captcha_len, img_w, img_h)
             img = enhance_contrast(img)
+            # img.show()
             tmp_X = np.asarray(img, dtype=np.float32) / 255
             # 将60 * 160 * 3 转成 160 * 60 * 3
             tmp_X = tmp_X.swapaxes(0, 1)
@@ -170,15 +164,27 @@ def gen(batch_size=32, captcha_len=4, img_w=width, img_h=height):
         yield X, y, random_chars
 
 
+def test_pytesser():
+    pass
+
+
 if __name__ == '__main__':
     # g = walk_captcha()
     # pre_process(Image.open("data/sogo/1510032435071.jpeg"))
     # a, _ = random_img()
     # pre_process(a)
-    g = gen(batch_size=1, captcha_len=6, img_h=60, img_w=160)
+    g = gen(batch_size=1, captcha_len=4, img_h=60, img_w=160)
     X, _, _ = next(g)
 
-    # g = train_set_gen()
+    # g = train_set_gen(source_url=wx_url)
     # x, img = next(g)
     # img.show()
     # reduce_noise(img, True)
+    # img = cv2.imread("./data/sogo/test.png")
+    # img = Image.open("./data/sogo/test.jpeg")
+    # img = reduce_noise(img, False)
+    # img = np.asarray(img, dtype=np.uint8)
+    # img = np.expand_dims(img, 2)
+    # txt = pytesser.image_to_string(img, lang='eng')
+    # print(txt)
+    random_img()
