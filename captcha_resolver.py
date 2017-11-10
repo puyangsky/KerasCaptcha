@@ -258,7 +258,7 @@ def evaluate(test_func, img_w, img_h, captcha_len, batch_size=1):
         try:
             if test_c.lower() == result.lower():
                 correct_count += 1
-                print("[INFO] actual: %s, predict: %s" % (test_c, result))
+                # print("[INFO] actual: %s, predict: %s" % (test_c, result))
             else:
                 print("[ERROR] actual: %s, predict: %s" % (test_c, result))
         except Exception as e:
@@ -273,11 +273,11 @@ def evaluate_test_set(test_func, img_w, img_h, captcha_len, batch_size=1):
         url, save_dir = ocr_test.sogo_url, "sogo"
     img_gen = ocr_test.train_set_gen(img_w=img_w, img_h=img_h, source_url=url)
     for i in range(batch_size):
-        test_X, img = next(img_gen)
+        test_X, img, text = next(img_gen)
         result = decode_batch(test_func, test_X)[0]
         ocr_test.save_predict(img, result, save_dir)
         # img.show()
-        print("[INFO] predict: %s" % result)
+        print("[INFO] predict: %s, real: %s" % (result, text))
         # time.sleep(2)
 
 
