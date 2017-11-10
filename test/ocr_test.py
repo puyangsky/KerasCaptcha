@@ -1,21 +1,20 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
-import random
-from StringIO import StringIO
 
-import cv2
-from captcha.image import ImageCaptcha
-import numpy as np
 import os
+import random
 import string
-from PIL import Image, ImageFilter, ImageEnhance
-import requests
+from StringIO import StringIO
 from time import time
-import pytesser
 
-alphabet = string.digits + string.letters
-# alphabet = string.letters
+import numpy as np
+import requests
+from PIL import Image, ImageFilter, ImageEnhance
+from captcha.image import ImageCaptcha
+
+# alphabet = string.digits + string.letters
+alphabet = string.letters
 file_path = os.path.dirname(os.path.realpath(__file__))
 width, height = 160, 60
 wx_url = "https://mp.weixin.qq.com/mp/verifycode?cert=1.50902306821e+12&nettype=WIFI&version=12020610&ascene=0&fontScale=100&pass_ticket=5SxzShVEZOSC%2BTzbIKI31zGcCnY27DTO7k4ZnIcO5DlhmnF1YJfVcZ%2BNWNu12%2FCg"

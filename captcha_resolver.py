@@ -23,8 +23,8 @@ from test import ocr_test
 
 OUTPUT_DIR = 'image_ocr'
 
-alphabet = string.digits + string.letters
-# alphabet = string.letters
+# alphabet = string.digits + string.letters
+alphabet = string.letters
 
 
 # Translation of characters to unique integer values
@@ -159,25 +159,6 @@ class VizCallback(keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         self.model.save_weights(os.path.join(self.output_dir, 'weights%02d.h5' % (epoch)))
-        # self.show_edit_distance(256)
-        # word_batch = next(self.text_img_gen)[0]
-        # res = decode_batch(self.test_func, word_batch['the_input'][0:self.num_display_words])
-        # if word_batch['the_input'][0].shape[0] < 256:
-        #     cols = 2
-        # else:
-        #     cols = 1
-        # for i in range(self.num_display_words):
-        #     pylab.subplot(self.num_display_words // cols, cols, i + 1)
-        #     if K.image_data_format() == 'channels_first':
-        #         the_input = word_batch['the_input'][i, 0, :, :]
-        #     else:
-        #         the_input = word_batch['the_input'][i, :, :, 0]
-        #     pylab.imshow(the_input.T, cmap='Greys_r')
-        #     pylab.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (word_batch['source_str'][i], res[i]))
-        # fig = pylab.gcf()
-        # fig.set_size_inches(10, 13)
-        # pylab.savefig(os.path.join(self.output_dir, 'e%02d.png' % (epoch)))
-        # pylab.close()
         print("\nepoch %d end..." % epoch)
 
 
@@ -264,8 +245,8 @@ def train_model(run_name, start_epoch, stop_epoch, img_w, img_h, captcha_len, do
                             initial_epoch=start_epoch)
         # model.save("my_model.h5")
     else:
-        evaluate(test_func, img_w, img_h, captcha_len, 1000)
-        # evaluate_test_set(test_func, img_w, img_h, 10)
+        # evaluate(test_func, img_w, img_h, captcha_len, 1000)
+        evaluate_test_set(test_func, img_w, img_h, captcha_len, 10)
 
 
 def evaluate(test_func, img_w, img_h, captcha_len, batch_size=1):
@@ -282,15 +263,19 @@ def evaluate(test_func, img_w, img_h, captcha_len, batch_size=1):
                 print("[ERROR] actual: %s, predict: %s" % (test_c, result))
         except Exception as e:
             print(e.message)
-    print("Accuracy: %.1f%%" % ((float(correct_count) / batch_size) * 100))
+    print("Accuracy: %.2f%%" % ((float(correct_count) / batch_size) * 100))
 
 
-def evaluate_test_set(test_func, img_w, img_h, batch_size=1):
-    img_gen = ocr_test.train_set_gen(img_w=img_w, img_h=img_h, source_url=ocr_test.wx_url)
+def evaluate_test_set(test_func, img_w, img_h, captcha_len, batch_size=1):
+    if captcha_len == 4:
+        url, save_dir = ocr_test.wx_url, "wx"
+    else:
+        url, save_dir = ocr_test.sogo_url, "sogo"
+    img_gen = ocr_test.train_set_gen(img_w=img_w, img_h=img_h, source_url=url)
     for i in range(batch_size):
         test_X, img = next(img_gen)
         result = decode_batch(test_func, test_X)[0]
-        ocr_test.save_predict(img, result, "sogo")
+        ocr_test.save_predict(img, result, save_dir)
         # img.show()
         print("[INFO] predict: %s" % result)
         # time.sleep(2)
@@ -299,4 +284,5 @@ def evaluate_test_set(test_func, img_w, img_h, batch_size=1):
 if __name__ == '__main__':
     # run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
     run_name = 'train_wx'
-    train_model(run_name, 0, 30, 160, 60, 4, False)
+    train_model(run_name, 0, 25, 160, 60, 4, False)
+    # train_model(run_name, 25, 25, 160, 60, 4, True)
